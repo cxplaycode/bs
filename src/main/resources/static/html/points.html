@@ -1,0 +1,231 @@
+<!DOCTYPE html>
+<html lang="en">
+<html style="height: 100%">
+<meta charset="UTF-8">
+<title>Title</title>
+</head>
+<body style="height: 100%; margin: 0">
+<div id="container" style="height:100%"></div>
+</body>
+<script type="text/javascript" src="../plugins/echarts/echarts.min.js"></script>
+<script type="text/javascript" src="../js/map/echarts-gl.min.js"></script>
+<script type="text/javascript" src="../js/map/ecStat.min.js"></script>
+<script type="text/javascript" src="../js/map/dataTool.min.js"></script>
+<script type="text/javascript" src="../plugins/echarts/china.js"></script>
+<script type="text/javascript" src="../js/map/world.js"></script>
+<script type="text/javascript" src="../js/map/bmap.js"></script>
+<script type="text/javascript" src="../js/map/simple.js"></script>
+
+<script src="../plugins/jquery/jquery-3.3.1.min.js"></script>
+<script type="text/javascript">
+
+    var dom = document.getElementById("container");
+    var myChart = echarts.init(dom);
+    var app = {};
+    option = null;
+
+    $.ajax({
+        url: 'http://localhost:8080/gis/city/findAll',
+        type: 'get',
+        dataType: 'json',
+        data: {},
+        success: function (data) {
+            console.log(data['data']);
+            console.log(typeof data['count']);
+
+            var length=data['count'];//数据长度，即城市的数量
+
+            var geoCoordMap=data['data'];//城市信息
+
+            console.log(geoCoordMap[1]['name']);
+
+            var convertData = function (geoCoordMap,length) {
+                var res = [];
+                for (var i = 0; i < length; i++) {
+                    if(geoCoordMap[i]['name'])
+                        res.push({
+                            name: geoCoordMap[i]['name'],
+                            value: geoCoordMap[i].geometry.coordinates
+                                .concat(geoCoordMap[i].properties.pm25)
+                                .concat(geoCoordMap[i].properties.area)
+                                .concat(geoCoordMap[i].properties.populationSize)
+                        });
+                }
+                return res;
+            };
+
+            //测试比较方法
+            var result1=geoCoordMap.sort(function (a, b) {
+                return b.properties.pm25 - a.properties.pm25;
+            }).slice(0, 6);
+            var result2=geoCoordMap.sort(function (a, b) {
+                return b.properties.area - a.properties.area;
+            }).slice(0, 6);
+            console.log(result1);
+            console.log(result2);
+
+
+            var color = ['#a6c84c', '#ffa022', '#46bee9'];
+            var series = [];
+
+            ['pm2.5','area','populationSize'].forEach(function (item, i) {
+                series.push(
+                    {
+                        name: item,
+                        type: 'scatter',
+                        coordinateSystem: 'geo',
+                        data: convertData(geoCoordMap,length),
+                        encode: {
+                            value: 2
+                        },
+                        symbolSize: function (val) {
+                            if(i==2)
+                                return val[2] / 10;
+                            if(i==3)
+                                return val[3]/80;
+                            if(i=4)
+                                return val[4]/1000;
+                            else return 8;
+                        },
+                        label: {
+                            normal: {
+                                formatter: '{b}',
+                                position: 'right',
+                                show: false
+                            },
+                            //高亮的时候显示特效
+                            emphasis: {
+                                show: true
+                            }
+                        },
+                        itemStyle: {
+                            normal: {
+                                color: color[i]
+                            }
+                        }
+                    },
+                    {
+                        name: item+' top5',
+                        type: 'effectScatter',
+                        coordinateSystem: 'geo',
+                        data: convertData(geoCoordMap.sort(function (a, b) {
+                            if(i==0)
+                                return b.properties.pm25 - a.properties.pm25;
+                            if(i==1)
+                                return b.properties.area - a.properties.area;
+                            else
+                                return b.properties.populationSize - a.properties.populationSize;
+                        }).slice(0, 5),5),
+                        encode: {
+                            value: 2
+                        },
+                        //symbol默认为circle标记，symbolSize表示标记的大小
+                        symbolSize: function (val) {
+                            if(i==2)
+                                return val[2] / 10;
+                            if(i==3)
+                                return val[3]/80;
+                            if(i=4)
+                                return val[4]/1000;
+                            else return 8;
+                        },
+                        //绘制完后显示特效
+                        showEffectOn: 'render',
+                        //涟漪特效相关配置，brushType表示波纹的绘制手法，有fill和stroke两种
+                        rippleEffect: {
+                            brushType: 'stroke'
+                        },
+                        //鼠标经过提示是否开启
+                        hoverAnimation: true,
+                        label: {
+                            normal: {
+                                //{a}：系列名。{b}：数据名,{c}：数据值。{@xxx}：数据中名为'xxx'的维度的值，如{@product}表示名为'product'` 的维度的值。
+                                //{@[n]}：数据中维度n的值，如{@[3]}` 表示维度 3 的值，从 0 开始计数。
+                                formatter: '{b}',
+                                position: 'right',
+                                show: true
+                            }
+                        },
+                        //图形样式
+                        itemStyle: {
+                            normal: {
+                                color: color[i],
+                                shadowBlur: 10,
+                                shadowColor: '#333'
+                            }
+                        },
+                        zlevel: 1
+                    })
+            })
+
+            option = {
+                backgroundColor: '#404a59',
+                title: {
+                    text: '云平台存储地理数据',
+                    subtext: 'data from echarts.baidu.com/option.html#series-effectScatter',
+                    sublink: 'https://echarts.baidu.com/option.html#series-effectScatter',
+                    left: 'center',
+                    textStyle: {
+                        color: '#fff'
+                    }
+                },
+                tooltip : {
+                    trigger: 'item',
+                    //定义悬浮框的内容,params为数据参数
+                    formatter:function(params){
+                        console.log(params);
+                        var res;
+                        res='城市名称：'+params.name+'<br>'
+                            +'城市pm2.5：'+params.data.value[2]+'<br>'
+                            +'城市面积:'+params.data.value[3]+'<br>'
+                            +'城市人口数量：'+params.data.value[4]+'<br>'
+                            +'城市坐标：'+'['+params.data.value[0]+','+params.data.value[1]+']'+'<br>';
+                        return res;
+                    }
+                },
+                //图例组件
+                legend: {
+                    //图例列表的布局朝向
+                    orient: 'vertical',
+                    y: 'bottom',
+                    x:'right',
+                    data:['pm2.5 top5','area top5','populationSize top5','pm2.5','area','populationSize'],
+                    textStyle: {
+                        color: '#fff'
+                    }
+                },
+                //
+                geo: {
+                    //地图类型
+                    map: 'china',
+                    //图形的文本标签
+                    label: {
+                        emphasis: {
+                            show: false
+                        }
+                    },
+                    //是否开启鼠标缩放和平移漫游。默认不开启。如果只想要开启缩放或者平移，可以设置成 'scale' 或者 'move'。设置成 true 为都开启
+                    roam: true,
+                    itemStyle: {
+                        normal: {
+                            areaColor: '#323c48',
+                            borderColor: '#111'
+                        },
+                        emphasis: {
+                            areaColor: '#2a333d'
+                        }
+                    }
+                },
+                //系列列表。每个系列通过 type 决定自己的图表类型type:scatter表示直角坐标系
+                series : series,
+
+            };
+            if (option && typeof option === "object") {
+                myChart.setOption(option, true);
+            }
+        }
+    })
+
+</script>
+
+</html>

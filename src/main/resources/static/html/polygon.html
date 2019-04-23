@@ -1,0 +1,269 @@
+<!DOCTYPE html>
+<html lang="en" style="height:100%">
+<head>
+    <meta charset="UTF-8">
+    <title>Title</title>
+</head>
+<body style="height: 100%; margin: 0">
+<div id="container" style="height: 100%"></div>
+<script type="text/javascript" src="../plugins/echarts/echarts.min.js"></script>
+<script type="text/javascript" src="../js/map/echarts-gl.min.js"></script>
+<script type="text/javascript" src="../js/map/ecStat.min.js"></script>
+<script type="text/javascript" src="../js/map/dataTool.min.js"></script>
+<script type="text/javascript" src="../plugins/echarts/china.js"></script>
+<script type="text/javascript" src="../js/map/world.js"></script>
+<script type="text/javascript" src="../js/map/bmap.js"></script>
+<script type="text/javascript" src="../js/map/simple.js"></script>
+<script src="../plugins/jquery/jquery-3.3.1.min.js"></script>
+<script type="text/javascript">
+
+    var dom = document.getElementById("container");
+    var myChart = echarts.init(dom);
+    var app = {};
+    option = null;
+
+    var search=window.location.search;
+    var id="";
+    if(search!=""){
+        id=search.split("?")[1].split("=")[1];
+        console.log(id);
+    }
+
+    $.ajax({
+        url: 'http://localhost:8080/gis/region/find',
+        type: 'get',
+        dataType: 'json',
+        data: {
+            id:id,
+        },
+        success: function (data) {
+            console.log(data['data']);
+            var city=data['data'];
+
+            //返回box渲染数据
+            var convertBox=function(city){
+                var res=[];
+                var boxs=city["box"]["points"];
+                for(var i=0;i<boxs.length-1;i++){
+                    res.push({
+                        name:city.name,
+                        value:boxs[i].coordinates
+                    })
+                }
+                return res;
+            }
+
+            //返回geometry渲染数据
+            var convertGeometry=function(city){
+                var res=[];
+                var geometries=city["geometry"]["points"];
+                for(var i=0;i<geometries.length-1;i++){
+                    res.push({
+                        name:city.name,
+                        value:geometries[i].coordinates
+                    })
+                }
+                return res;
+            }
+
+
+            var lineBox=function(city){
+                var res=[];
+                var boxs=city["box"]["points"];
+                for(var i=0;i<boxs.length-1;i++){
+                    var fromCoord=boxs[i].coordinates;
+                    var toCoord=boxs[i+1].coordinates;
+                    res.push({
+                        formName:city.name,
+                        toName:city.name,
+                        coords:[fromCoord, toCoord],
+                    })
+                }
+            };
+
+            var lineGeometry=function(city){
+                var res=[];
+                var geometries=city["geometry"]["points"];
+                for(var i=0;i<geometries.length-1;i++){
+                    var fromCoord=geometries[i].coordinates;
+                    var toCoord=geometries[i+1].coordinates;
+                    res.push({
+                        formName:city.name,
+                        toName:city.name,
+                        coords:[fromCoord, toCoord],
+                        properties:{
+                            sheng:city["properties"]["province"],
+                            regoin:city["properties"]["regoin"],
+                            county:city["properties"]["county"]
+                        }
+                    })
+                }
+            }
+            option = {
+                backgroundColor: '#404a59',
+                title: {
+                    text: '云平台存储地理数据',
+                    subtext: 'data from echarts.baidu.com/option.html#series-effectScatter',
+                    sublink: 'https://echarts.baidu.com/option.html#series-effectScatter',
+                    left: 'center',
+                    textStyle: {
+                        color: '#fff'
+                    }
+                },
+                tooltip : {
+                    trigger: 'item',
+                    //定义悬浮框的内容,params为数据参数
+                    formatter:function(params){
+                        var res;
+                        console.log(params);
+                        res='地区名称：'+params.name+'<br>'
+                            +'城市坐标：'+'['+params.data.value[0]+','+params.data.value[1]+']'+'<br>';
+                        return res;
+                    }
+                },
+                //图例组件
+                legend: {
+                    //图例列表的布局朝向
+                    orient: 'vertical',
+                    y: 'bottom',
+                    x:'right',
+                    data:['boxPoint','boxLine'],
+                    textStyle: {
+                        color: '#fff'
+                    }
+                },
+                //
+                geo: {
+                    //地图类型
+                    map: 'china',
+                    //图形的文本标签
+                    label: {
+                        emphasis: {
+                            show: false
+                        }
+                    },
+                    //是否开启鼠标缩放和平移漫游。默认不开启。如果只想要开启缩放或者平移，可以设置成 'scale' 或者 'move'。设置成 true 为都开启
+                    roam: true,
+                    itemStyle: {
+                        normal: {
+                            areaColor: '#323c48',
+                            borderColor: '#111'
+                        },
+                        emphasis: {
+                            areaColor: '#2a333d'
+                        }
+                    }
+                },
+                //系列列表。每个系列通过 type 决定自己的图表类型type:scatter表示直角坐标系
+                series : [
+                    {
+                        name: 'boxPoint',
+                        type: 'scatter',
+                        coordinateSystem: 'geo',
+                        data: convertBox(city),
+                        encode: {
+                            value: 2
+                        },
+                        symbolSize: function (val) {
+                            return val[2] / 10;
+                        },
+                        label: {
+                            normal: {
+                                formatter: '{b}',
+                                position: 'right',
+                                show: false
+                            },
+                            //高亮的时候显示特效
+                            emphasis: {
+                                show: true
+                            }
+                        },
+                        itemStyle: {
+                            normal: {
+                                color: '#ddb926'
+                            }
+                        }
+                    },
+                    {
+                        name:'boxLine',
+                        type:'lines',
+                        zlevel: 1,
+                        effect:{
+                            show:true,
+                            period:2,
+                            trailLength:1,
+                            color: '#fff',
+                            symbolSize: 1
+                        },
+                        lineStyle: {
+                            normal: {
+                                color: '#a6c84c',
+                                width: 0,
+                                //线的曲度
+                                curveness: 0
+                            }
+                        },
+                        data: lineBox(city)
+                    },                    {
+                        name: 'geometryPoint',
+                        type: 'scatter',
+                        coordinateSystem: 'geo',
+                        data: convertGeometry(city),
+                        encode: {
+                            value: 2
+                        },
+                        symbolSize: function (val) {
+                            return val[2] / 10;
+                        },
+                        label: {
+                            normal: {
+                                formatter: '{b}',
+                                position: 'right',
+                                show: false
+                            },
+                            //高亮的时候显示特效
+                            emphasis: {
+                                show: true
+                            }
+                        },
+                        itemStyle: {
+                            normal: {
+                                color: '#ddb926'
+                            }
+                        }
+                    },
+                    {
+                        name:'geometryLine',
+                        type:'lines',
+                        zlevel: 1,
+                        effect:{
+                            show:true,
+                            period:2,
+                            trailLength:1,
+                            color: '#fff',
+                            symbolSize: 1
+                        },
+                        lineStyle: {
+                            normal: {
+                                color: '#a6c84c',
+                                width: 0,
+                                //线的曲度
+                                curveness: 0
+                            }
+                        },
+                        data: lineGeometry(city)
+                    }
+                ]
+            };
+            if (option && typeof option === "object") {
+                myChart.setOption(option, true);
+            }
+        }
+    })
+
+</script>
+
+
+
+</body>
+</html>

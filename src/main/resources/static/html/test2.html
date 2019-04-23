@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Title</title>
+</head>
+<script src="../plugins/jquery/jquery-3.3.1.min.js"></script>
+<script>
+    $.ajax({
+        type:'POST',
+        url:"http://localhost:8080/gis/city/saveCity",
+        data:{
+            city:JSON.stringify({"name":"招远","properties":{"pm25":12,"area":614,"populationSize":6894}}),
+            x:40,
+            y:40,
+            maxDistance:50000,
+            minDistance:10000,
+        },
+        dataType:'json',
+        success:function(res){
+
+            console.log(res);
+            layer.msg("更新成功");
+        }
+    });
+</script>
+<body>
+<p>"geometry":{"type":"Point","coordinates":[120.38,37.35]},,"type":"Point"</p>
+</body>
+</html>
